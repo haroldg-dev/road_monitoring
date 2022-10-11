@@ -270,10 +270,14 @@ class LoadWebcam:  # for inference
 
 
 class LoadStreams:  # multiple IP or RTSP cameras
-    def __init__(self, sources='streams.txt', img_size=640, stride=32):
+    def __init__(self, sources='streams.txt', img_size=640, stride=32, x1=0, y1=0, x2=640, y2=640):
         self.mode = 'stream'
         self.img_size = img_size
         self.stride = stride
+        self.x1 = x1
+        self.x2 = x2
+        self.y1 = y1
+        self.y2 = y2
 
         if os.path.isfile(sources):
             with open(sources, 'r') as f:
@@ -343,8 +347,8 @@ class LoadStreams:  # multiple IP or RTSP cameras
         # Convert
         img = img[:, :, :, ::-1].transpose(0, 3, 1, 2)  # BGR to RGB, to bsx3x416x416
         img = np.ascontiguousarray(img)
-
-        return self.sources, img, img0, None
+        iimg = img[self.x1:self.x2, self.y1:self.y2]
+        return self.sources, img, img0, iimg
 
     def __len__(self):
         return 0  # 1E12 frames = 32 streams at 30 FPS for 30 years
