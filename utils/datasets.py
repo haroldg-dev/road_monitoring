@@ -188,10 +188,11 @@ class LoadImages:  # for inference
             #print(f'image {self.count}/{self.nf} {path}: ', end='')
 
         # Padded resize
-        hh, ww, cc = img0.shape
-        hhh = int(hh/3)
+        #hh, ww, cc = img0.shape
+        #hhh = int(hh/3)
         #print(hhh)
-        imgf = img0[0+hhh:hh-hhh,::]
+        #imgf = img0[0+hhh:hh-hhh,::]
+        imgf = img0
 
         img = letterbox(imgf, self.img_size, stride=self.stride)[0]
 
