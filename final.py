@@ -25,10 +25,12 @@ up_line_position = middle_line_position - 30 #70
 down_line_position = middle_line_position + 30 #130
 
 # Listas para almacenar el conteo de vehículos
+time_cero = []
+time_final = []
 temp_up_list = []
 temp_down_list = []
-up_list = [0, 0, 0, 0]
-down_list = [0, 0, 0, 0]
+up_list = [0, 0, 0]
+down_list = [0, 0, 0]
 
 font_color = (0, 0, 255)
 font_size = 0.5
@@ -40,7 +42,7 @@ def save_data(id, tipo = "null", velocidad = 0):
     reporte = "/home/vision/reportes/reporteVehiculos.csv"
     now = datetime.datetime.now()
     t = now.strftime("%H:%M:%S")
-    linea = str(fecha) + ";" + str(t) + ";" + tipo + ";" + velocidad + "\n"
+    linea = str(fecha) + ";" + str(t) + ";" + tipo + ";" + str(velocidad) + "\n"
     # validamos si existe el archivo de reporte
     if(path.exists(reporte)):
         # id carro - timestamp - tipo - dirección - distancia
@@ -71,23 +73,39 @@ def count_vehicle(box_id, img):
     # Encontrar la posición actual del vehículo
     if (iy > up_line_position) and (iy < middle_line_position):
         if id not in temp_up_list:
+            t0 = time.time()
+            time_cero.append(t0)
             temp_up_list.append(id)
 
     elif iy < down_line_position and iy > middle_line_position:
         if id not in temp_down_list:
+            t0 = time.time()
+            time_cero.append(t0)
             temp_down_list.append(id)
             
     elif iy < up_line_position:
         if id in temp_down_list:
+            index = temp_down_list.index(id)
+            t0 = time_cero[index] 
+            print("T0 = ", t0)
+            tf = time.time() - t0
+            print("Tf = ", tf)
             temp_down_list.remove(id)
+            time_cero.remove(t0)
             up_list[index] = up_list[index]+1
-            save_data(id, typeslist[index], "subida", 0)
+            save_data(id, typeslist[index], tf)
 
     elif iy > down_line_position:
         if id in temp_up_list:
+            index = temp_up_list.index(id)
+            t0 = time_cero[index]
+            print("T0 = ", t0)
+            tf = time.time() - t0
+            print("Tf = ", tf)
             temp_up_list.remove(id)
+            time_cero.remove(t0)
             down_list[index] = down_list[index] + 1
-            save_data(id, typeslist[index], "bajada", 0)
+            save_data(id, typeslist[index], tf)
     
     # Draw circle in the middle of the rectangle
     #cv2.circle(img, center, 2, colors[index], -1)  # end here
@@ -97,7 +115,8 @@ def count_vehicle(box_id, img):
 
 def detect():
     weights = 'yolov7-tiny.pt'
-    source = "rtsp://admin:ALSpassword@192.168.1.64:554/Streaming/channels/2/"
+    #source = "rtsp://admin:ALSpassword@192.168.1.64:554/Streaming/channels/2/"
+    source = "/home/vision/Videos/cars.mp4"
     imgsz = 320
     trace = True
     view_img = True
@@ -107,7 +126,7 @@ def detect():
     classes = None
     agnostic_nms = False
     save_conf = True
-    webcam = True
+    webcam = False
 
     # Cargamos el modelo de detección
     model = attempt_load(weights, map_location=device)  # FP32 model
@@ -120,7 +139,7 @@ def detect():
     if webcam:
         view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride, 0, 0, 320, 320)
+        dataset = LoadStreams(source, img_size=imgsz, stride=stride)
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride)
 
@@ -138,30 +157,32 @@ def detect():
     
     for path, img, im0s, iimg in dataset:
         detection = []
-        iimg = torch.from_numpy(iimg).to(device)
-        iimg = iimg.float()  # uint8 to fp16/32
-        iimg /= 255.0  # 0 - 255 to 0.0 - 1.0
-        if iimg.ndimension() == 3:
-            iimg = iimg.unsqueeze(0)
+        img = torch.from_numpy(img).to(device)
+        img = img.float()  # uint8 to fp16/32
+        img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        if img.ndimension() == 3:
+            img = img.unsqueeze(0)
 
         # Inference
         t1 = time_synchronized()
-        pred = model(iimg, False)[0]
+        pred = model(img, False)[0]
         t2 = time_synchronized()
 
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms)
         t3 = time_synchronized()
-
+        
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             if webcam:  # batch_size >= 1
+                """ print(im0s[i].copy().shape, " i = ", i)
+                imgf = im0s[i].copy()[0:360,0:200] """
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
             else:
                 p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             hh, ww, cc = im0.shape
-            hhh = int(hh/3)
+            hhh = int(hh/4)
             """ print(hhh)
             imgf = im0[0+hhh:hh-hhh,::] """
             
@@ -170,7 +191,7 @@ def detect():
             
             if len(det):
                 # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(iimg.shape[2:], det[:, :4], im0.shape).round()
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
                 # Print results
                 """ for c in det[:, -1].unique():
                     if c in required_class_index: 
