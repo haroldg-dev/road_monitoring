@@ -55,6 +55,7 @@ def save_data(id, tipo = "null", velocidad = 0):
         f.write("DATE;TIME;Tipo de Vehículo;Velocidad Promedio (km/h)\n")
         f.write(linea)
         f.close()
+    print("[" + fecha + "] - " + t + " " + linea)
 
 # Función para encontrar el centro del vehículo
 def find_center(x, y, w, h):
@@ -106,7 +107,7 @@ def count_vehicle(box_id, img):
             time_cero.remove(t0)
             down_list[index] = down_list[index] + 1
             save_data(id, typeslist[index], tf)
-    
+            
     # Draw circle in the middle of the rectangle
     #cv2.circle(img, center, 2, colors[index], -1)  # end here
     #print(up_list, down_list)
@@ -115,18 +116,18 @@ def count_vehicle(box_id, img):
 
 def detect():
     weights = 'yolov7-tiny.pt'
-    #source = "rtsp://admin:ALSpassword@192.168.1.64:554/Streaming/channels/2/"
-    source = "/home/vision/Videos/cars.mp4"
+    source = "rtsp://admin:ALSpassword@192.168.1.64:554/Streaming/channels/2/"
+    #source = "/home/vision/Videos/cars.mp4"
     imgsz = 320
     trace = True
-    view_img = True
+    view_img = False
     device = 'cpu'
     conf_thres = 0.60 # porcentaje de acertividad minima
     iou_thres = 0.45
     classes = None
     agnostic_nms = False
     save_conf = True
-    webcam = False
+    webcam = True
 
     # Cargamos el modelo de detección
     model = attempt_load(weights, map_location=device)  # FP32 model
@@ -137,7 +138,7 @@ def detect():
         model = TracedModel(model, device, imgsz)
 
     if webcam:
-        view_img = check_imshow()
+        #view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz, stride=stride)
     else:
@@ -213,7 +214,7 @@ def detect():
                     count_vehicle(box_id, im0)
 
             # Print time (inference + NMS)
-            print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+            #print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
             
             # Stream results
@@ -226,6 +227,8 @@ def detect():
                 cv2.waitKey(1)  # 1 millisecond
 
     #print(f'Done. ({time.time() - t0:.3f}s)')
+    now = datetime.datetime.now()
+    tiempo = now.strftime("%H:%M:%S")
     print("[" + fecha + "] - " + tiempo + " TERMINÓ EL PROGRAMA")
 
 
