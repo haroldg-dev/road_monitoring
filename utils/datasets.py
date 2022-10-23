@@ -188,11 +188,9 @@ class LoadImages:  # for inference
             #print(f'image {self.count}/{self.nf} {path}: ', end='')
 
         # Padded resize
-        #hh, ww, cc = img0.shape
-        #hhh = int(hh/3)
-        #print(hhh)
-        #imgf = img0[0+hhh:hh-hhh,::]
-        imgf = img0
+        hh, ww, cc = img0.shape
+        hhh = int(hh/4)
+        imgf = img0[0+hhh:hh-hhh,::]
 
         img = letterbox(imgf, self.img_size, stride=self.stride)[0]
 
@@ -200,7 +198,7 @@ class LoadImages:  # for inference
         img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
         img = np.ascontiguousarray(img)
 
-        return path, img, imgf, self.cap, img0
+        return path, img, imgf, self.cap
 
     def new_video(self, path):
         self.frame = 0
@@ -270,15 +268,11 @@ class LoadWebcam:  # for inference
 
 
 class LoadStreams:  # multiple IP or RTSP cameras
-    def __init__(self, sources='streams.txt', img_size=640, stride=32, x1=0, y1=0, x2=640, y2=640):
+    def __init__(self, sources='streams.txt', img_size=640, stride=32):
         self.mode = 'stream'
         self.img_size = img_size
         self.stride = stride
-        self.x1 = x1
-        self.x2 = x2
-        self.y1 = y1
-        self.y2 = y2
-
+        print("DATASETS OPEN")
         if os.path.isfile(sources):
             with open(sources, 'r') as f:
                 sources = [x.strip() for x in f.read().strip().splitlines() if len(x.strip())]
@@ -334,12 +328,17 @@ class LoadStreams:  # multiple IP or RTSP cameras
     def __next__(self):
         self.count += 1
         img0 = self.imgs.copy()
+        #imgf = []
+        #for n in range(0, len(img0)):
+        #    imgf.append(img0[n][0::,250:550])
+
         if cv2.waitKey(1) == ord('q'):  # q to quit
             cv2.destroyAllWindows()
             raise StopIteration
 
         # Letterbox
         img = [letterbox(x, self.img_size, auto=self.rect, stride=self.stride)[0] for x in img0]
+        
 
         # Stack
         img = np.stack(img, 0)
@@ -347,8 +346,8 @@ class LoadStreams:  # multiple IP or RTSP cameras
         # Convert
         img = img[:, :, :, ::-1].transpose(0, 3, 1, 2)  # BGR to RGB, to bsx3x416x416
         img = np.ascontiguousarray(img)
-        iimg = img[self.x1:self.x2, self.y1:self.y2]
-        return self.sources, img, img0, iimg
+
+        return self.sources, img, img0, img0
 
     def __len__(self):
         return 0  # 1E12 frames = 32 streams at 30 FPS for 30 years
@@ -1021,6 +1020,7 @@ def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scale
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
     img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+    
     return img, ratio, (dw, dh)
 
 

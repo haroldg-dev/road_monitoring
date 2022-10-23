@@ -20,9 +20,9 @@ tracker = EuclideanDistTracker()
 required_class_index = [2, 5, 7]
 typeslist = ["vehículo liviano", "Vehículo mediano", "Vehículo pesado"]
 # Lineas para el análisis de velocidad
-middle_line_position = 100   
-up_line_position = middle_line_position - 30 #70
-down_line_position = middle_line_position + 30 #130
+middle_line_position = 230 
+up_line_position = middle_line_position - 120 #400
+down_line_position = middle_line_position + 120 #300
 
 # Listas para almacenar el conteo de vehículos
 time_cero = []
@@ -35,6 +35,9 @@ down_list = [0, 0, 0]
 font_color = (0, 0, 255)
 font_size = 0.5
 font_thickness = 2
+
+# Velocidad
+metraje = 0.005 #km
 
 # Función para almacenar datos
 def save_data(id, tipo = "null", velocidad = 0):
@@ -72,40 +75,42 @@ def count_vehicle(box_id, img):
     ix, iy = center
     
     # Encontrar la posición actual del vehículo
-    if (iy > up_line_position) and (iy < middle_line_position):
+    if (ix > up_line_position) and (ix < middle_line_position):
         if id not in temp_up_list:
             t0 = time.time()
             time_cero.append(t0)
             temp_up_list.append(id)
 
-    elif iy < down_line_position and iy > middle_line_position:
+    elif ix < down_line_position and ix > middle_line_position:
         if id not in temp_down_list:
             t0 = time.time()
             time_cero.append(t0)
             temp_down_list.append(id)
             
-    elif iy < up_line_position:
+    elif ix < up_line_position:
         if id in temp_down_list:
-            index = temp_down_list.index(id)
-            t0 = time_cero[index] 
-            print("T0 = ", t0)
+            index1 = temp_down_list.index(id)
+            t0 = time_cero[index1] 
+            #print("T0 = ", t0)
             tf = time.time() - t0
-            print("Tf = ", tf)
+            #print("Tf = ", tf)
             temp_down_list.remove(id)
             time_cero.remove(t0)
             up_list[index] = up_list[index]+1
+            tf = (metraje/ tf) * 3600 * 100
             save_data(id, typeslist[index], tf)
 
-    elif iy > down_line_position:
+    elif ix > down_line_position:
         if id in temp_up_list:
-            index = temp_up_list.index(id)
-            t0 = time_cero[index]
-            print("T0 = ", t0)
+            index1 = temp_up_list.index(id)
+            t0 = time_cero[index1]
+            #print("T0 = ", t0)
             tf = time.time() - t0
-            print("Tf = ", tf)
+            #print("Tf = ", tf)
             temp_up_list.remove(id)
             time_cero.remove(t0)
             down_list[index] = down_list[index] + 1
+            tf = (metraje/ tf) * 3600 * 100
             save_data(id, typeslist[index], tf)
             
     # Draw circle in the middle of the rectangle
@@ -120,7 +125,7 @@ def detect():
     #source = "/home/vision/Videos/cars.mp4"
     imgsz = 320
     trace = True
-    view_img = False
+    view_img = True
     device = 'cpu'
     conf_thres = 0.60 # porcentaje de acertividad minima
     iou_thres = 0.45
@@ -198,19 +203,23 @@ def detect():
                     if c in required_class_index: 
                         n = (det[:, -1] == c).sum()  # detections per class
                         s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string """
-
+                
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if view_img and cls in required_class_index:  # Add bbox to image
+                    if cls in required_class_index:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
-                        cv2.rectangle(im0, (int(xyxy[0]), int(xyxy[1]) + hhh) , (int(xyxy[2]), int(xyxy[3]) + hhh), colors[int(cls)], 2, lineType=cv2.LINE_AA)
+                        now = datetime.datetime.now()
+                        t = now.strftime("%m/%d/%Y - %H:%M:%S")
+                        print("[" + t + "] - " + label)
                         detection.append([int(xyxy[0]), int(xyxy[1]), (int(xyxy[2])-int(xyxy[0])), (int(xyxy[3])-int(xyxy[1])), required_class_index.index(int(cls))])
-            
+                        if view_img: 
+                            cv2.rectangle(im0, (int(xyxy[0]), int(xyxy[1])) , (int(xyxy[2]), int(xyxy[3])), colors[int(cls)], 2, lineType=cv2.LINE_AA)
+                            
                 boxes_ids = tracker.update(detection)
 
                 for box_id in boxes_ids:
                     x, y, w, h, id, _= box_id
-                    cv2.putText(im0, str(id), (x, y - 15 + hhh), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
+                    cv2.putText(im0, str(id), (x, y - 15), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
                     count_vehicle(box_id, im0)
 
             # Print time (inference + NMS)
@@ -220,9 +229,9 @@ def detect():
             # Stream results
             if view_img:
                 # Draw the crossing lines
-                cv2.line(im0, (0, middle_line_position + hhh), (ww, middle_line_position + hhh), (255, 0, 255), 2)
-                cv2.line(im0, (0, up_line_position + hhh), (ww, up_line_position + hhh), (0, 0, 255), 2)
-                cv2.line(im0, (0, down_line_position + hhh), (ww, down_line_position + hhh), (0, 0, 255), 2)
+                cv2.line(im0, (middle_line_position, 0), (middle_line_position, hh), (255, 0, 255), 2)
+                cv2.line(im0, (up_line_position, 0), (up_line_position, hh), (0, 0, 255), 2)
+                cv2.line(im0, (down_line_position, 0), (down_line_position, hh), (0, 0, 255), 2)
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(1)  # 1 millisecond
 
